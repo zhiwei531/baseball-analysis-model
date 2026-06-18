@@ -1,0 +1,72 @@
+project:
+  name: baseball-analysis-model
+  data_dir: data
+  raw_video_dir: raw
+  output_dir: outputs
+
+dataset:
+  clips_file: data/metadata/clips.csv
+  clip_ids:
+    - clip_a
+
+video:
+  target_fps: 30
+  resize_longest_side: 1280
+  preserve_aspect_ratio: true
+  write_frames: true
+  max_frames_per_clip: null
+
+pose:
+  backend: external_2d_csv
+  canonical_coordinate_space: normalized
+
+pose3d:
+  enabled: true
+  backend: gvhmr
+  root_joint: pelvis_center
+  normalize_scale: true
+  min_valid_joints: 8
+  gate_with_2d_prior: false
+  confidence_threshold: 0.5
+  confidence_thresholds:
+    default: 0.5
+    torso: 0.45
+    mid_limb: 0.50
+    distal: 0.60
+  external_scale_mode: smpl_world
+  external_result_path: "{data_dir}/external_pose3d/{backend}/{clip_id}.csv"
+  interpolate_max_gap_frames: 3
+  interpolate_max_gap_by_group:
+    default: 3
+    torso: 5
+    mid_limb: 3
+    distal: 2
+  smoothing:
+    window_length: 15
+    polyorder: 2
+    median_window_length: 5
+    refine_window_length: 9
+    limb_length_tolerance_ratio: 0.24
+    jump_threshold_multiplier: 3.0
+    joint_jump_thresholds:
+      default: 3.0
+      torso: 4.0
+      mid_limb: 2.8
+      distal: 2.5
+
+postprocess:
+  confidence_threshold: 0.5
+  confidence_thresholds:
+    default: 0.5
+    torso: 0.45
+    mid_limb: 0.6
+    distal: 0.65
+
+experiments:
+  default_conditions:
+    - gvhmr_input
+  default_3d_conditions:
+    - gvhmr_input_3d
+
+conditions:
+  gvhmr_input: {}
