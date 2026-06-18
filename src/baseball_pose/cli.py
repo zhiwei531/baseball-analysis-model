@@ -26,6 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
             "lift-pose-3d",
             "smooth-pose-3d",
             "render-overlays-3d",
+            "run-srs-2d",
+            "run-video-2d-3d",
         ],
         help="Command to run.",
     )
@@ -38,6 +40,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--condition",
         action="append",
         help="Input or 3D condition id. Defaults to config experiment conditions.",
+    )
+    parser.add_argument(
+        "--input",
+        help="Input video path for run-srs-2d or run-video-2d-3d.",
+    )
+    parser.add_argument(
+        "--output-prefix",
+        help="Output filename prefix for the SRS 2D extractor. Defaults to clip id.",
+    )
+    parser.add_argument(
+        "--max-frames",
+        type=int,
+        default=0,
+        help="Optional frame limit for quick debugging. 0 means all frames.",
     )
     return parser
 
@@ -121,6 +137,51 @@ def main() -> None:
         for result in results:
             print(f"{result.clip_id}/{result.condition_id}: {result.frame_count} frames")
             print(f"  overlay3d: {result.overlay_video}")
+        return
+
+    if args.command == "run-srs-2d":
+        from baseball_pose.srs2d.pipeline import run_srs_2d_pipeline
+
+        if not args.input:
+            raise ValueError("run-srs-2d requires --input.")
+        clip_id = args.clip_id[0] if args.clip_id else None
+        condition_id = args.condition[0] if args.condition else "srs_2d_pose"
+        result = run_srs_2d_pipeline(
+            args.input,
+            config=config,
+            clip_id=clip_id,
+            condition_id=condition_id,
+            output_prefix=args.output_prefix,
+            max_frames=args.max_frames,
+        )
+        print(f"{result.clip_id}/{result.condition_id}: {result.frame_count} frames")
+        print(f"  srs2d stable video: {result.stable_pose_video}")
+        print(f"  srs2d quality video: {result.quality_boxes_video}")
+        print(f"  project pose csv: {result.project_pose_csv}")
+        print(f"  frames csv: {result.frame_manifest_csv}")
+        return
+
+    if args.command == "run-video-2d-3d":
+        from baseball_pose.srs2d.pipeline import run_video_2d_3d_pipeline
+
+        if not args.input:
+            raise ValueError("run-video-2d-3d requires --input.")
+        clip_id = args.clip_id[0] if args.clip_id else None
+        condition_id = args.condition[0] if args.condition else "srs_2d_pose"
+        result = run_video_2d_3d_pipeline(
+            args.input,
+            config=config,
+            clip_id=clip_id,
+            condition_id=condition_id,
+            output_prefix=args.output_prefix,
+            max_frames=args.max_frames,
+        )
+        print(f"{result.srs2d.clip_id}/{result.srs2d.condition_id}: {result.srs2d.frame_count} frames")
+        print(f"  srs2d stable video: {result.srs2d.stable_pose_video}")
+        print(f"  project pose csv: {result.srs2d.project_pose_csv}")
+        print(f"  pose3d: {result.pose3d_csv}")
+        print(f"  pose3d smooth: {result.smoothed_pose3d_csv}")
+        print(f"  overlay3d: {result.overlay3d_video}")
         return
 
     raise ValueError(f"Unhandled command: {args.command}")

@@ -1,27 +1,31 @@
 # Baseball Analysis Model
 
-This repository contains only the GVHMR-oriented 3D pipeline extracted from the
-baseball analysis project. It does not include the 2D detector pipeline,
-RTMPose/MediaPipe detector implementations, YOLO/object tracking, reports, raw
-videos, or generated outputs.
+This repository packages the model-side baseball pose pipeline:
+
+```text
+single input video
+  -> SRS 2D stabilized pose extraction
+  -> project 2D pose/frame CSV contract
+  -> GVHMR/external video-HMR 3D import
+  -> 3D smoothing
+  -> overlays3d video output
+```
+
+The SRS 2D pose extractor under `src/baseball_pose/srs2d/` is Jiaming's work.
+Its original README and model card are preserved in
+`docs/srs_2d_pose_model_package/`.
+
+Generated data, raw videos, model weights, and large external model repositories
+are intentionally excluded by `.gitignore`.
 
 ## Included Pipeline
 
-The supported flow is:
-
-```text
-GVHMR/external video-HMR result
-  -> lift-pose-3d
-  -> smooth-pose-3d
-  -> render-overlays-3d
-```
-
 Key files:
 
-- `scripts/build_gvhmr_input_from_frames.py`: build a GVHMR-safe input video
-  from frames sampled by an upstream pipeline.
-- `scripts/export_gvhmr_joints.py`: convert GVHMR `hmr4d_results.pt` outputs
-  to the flat project 3D CSV contract.
+- `src/baseball_pose/srs2d/extractor.py`: Jiaming's SRS 2D stabilized pose extractor.
+- `src/baseball_pose/srs2d/pipeline.py`: adapter that runs SRS 2D, exports the project pose CSV, and writes frame manifests.
+- `scripts/build_gvhmr_input_from_frames.py`: build a GVHMR-safe input video from sampled frames.
+- `scripts/export_gvhmr_joints.py`: convert GVHMR `hmr4d_results.pt` outputs to the flat project 3D CSV contract.
 - `src/baseball_pose/pose3d/`: 3D pose schemas and external HMR import adapter.
 - `src/baseball_pose/pipeline/pose3d.py`: GVHMR/external-HMR import stage.
 - `src/baseball_pose/postprocess/smoothing3d.py`: temporal 3D smoothing.
@@ -35,7 +39,28 @@ python -m venv .venv
 python -m pip install -e '.[dev]'
 ```
 
-## Data Contract
+## Output Layout
+
+For clip `clip_a` and condition `srs_2d_pose`, the integrated entry writes:
+
+```text
+outputs/srs2d/clip_a/clip_a_stable_pose.mp4
+outputs/srs2d/clip_a/clip_a_stable_pose_quality_boxes.mp4
+outputs/srs2d/clip_a/clip_a_raw_vs_stable.mp4
+data/interim/frames/clip_a/srs_2d_pose.csv
+data/processed/poses/clip_a/srs_2d_pose.csv
+data/processed/poses3d/clip_a/srs_2d_pose_3d.csv
+data/processed/poses3d/clip_a/srs_2d_pose_3d_smooth.csv
+outputs/overlays3d/clip_a__srs_2d_pose_3d_smooth.mp4
+```
+
+The 3D overlay naming matches the existing `overlays3d` format:
+
+```text
+{clip_id}__{condition_id}_3d_smooth.mp4
+```
+
+## GVHMR Data Contract
 
 External GVHMR CSV files are expected at:
 
@@ -55,22 +80,30 @@ Optional columns:
 clip_id,timestamp_sec,confidence,score,scale_mode,lift_backend
 ```
 
-The imported 3D pose CSV is written to:
-
-```text
-{data_dir}/processed/poses3d/{clip_id}/{condition}_3d.csv
-```
-
 ## Commands
 
+Run only Jiaming's SRS 2D extractor and export project-compatible 2D CSVs:
+
 ```bash
-baseball-pose --config configs/experiments/gvhmr_benchmark_baseball_1.yaml validate-config
-baseball-pose --config configs/experiments/gvhmr_benchmark_baseball_1.yaml plan-3d
-baseball-pose --config configs/experiments/gvhmr_benchmark_baseball_1.yaml lift-pose-3d
-baseball-pose --config configs/experiments/gvhmr_benchmark_baseball_1.yaml smooth-pose-3d
-baseball-pose --config configs/experiments/gvhmr_benchmark_baseball_1.yaml render-overlays-3d
+baseball-pose --config configs/default.yaml run-srs-2d \
+  --input path/to/video.mp4 \
+  --clip-id clip_a
 ```
 
-`lift-pose-3d` can use existing sampled frame manifests or an upstream 2D pose
-CSV only as timing and optional gating inputs. This repository intentionally
-does not run 2D pose detection.
+Run the merged 2D+3D entry for one video after the matching GVHMR CSV exists:
+
+```bash
+baseball-pose --config configs/default.yaml run-video-2d-3d \
+  --input path/to/video.mp4 \
+  --clip-id clip_a
+```
+
+3D-only commands are still available:
+
+```bash
+baseball-pose --config configs/default.yaml validate-config
+baseball-pose --config configs/default.yaml plan-3d
+baseball-pose --config configs/default.yaml lift-pose-3d
+baseball-pose --config configs/default.yaml smooth-pose-3d
+baseball-pose --config configs/default.yaml render-overlays-3d
+```
