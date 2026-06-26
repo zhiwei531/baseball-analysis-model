@@ -41,30 +41,30 @@ python -m pip install -e '.[dev]'
 
 ## GVHMR/SMPL Assets
 
-The 3D stage expects GVHMR to run as an external research dependency. Clone the
-official GVHMR code outside versioned source or under the ignored `external/`
-folder:
+Do not vendor the full GVHMR source tree or model weights into this repository.
+The 3D stage consumes either:
 
-```bash
-mkdir -p external
-git clone https://github.com/zju3dv/GVHMR.git external/GVHMR
-```
+- a ready-made CSV at `data/external_pose3d/gvhmr/{clip_id}.csv`, or
+- a GVHMR `hmr4d_results.pt` converted by `scripts/export_gvhmr_joints.py` from
+  an existing GVHMR runtime environment.
 
-Download weights and body models from the official upstream sources:
+Download the required model/body-model files from the official upstream
+sources:
 
 - GVHMR official code and install notes: <https://github.com/zju3dv/GVHMR>
-- GVHMR pretrained checkpoints Google Drive folder from the official install
-  doc: <https://drive.google.com/drive/folders/1eebJ13FUEXrKBawHpJroW0sNSxLjh9xD?usp=drive_link>
+- GVHMR pretrained checkpoint folder from the official install doc:
+  <https://drive.google.com/drive/folders/1eebJ13FUEXrKBawHpJroW0sNSxLjh9xD?usp=drive_link>
 - SMPL official download page: <https://smpl.is.tue.mpg.de/>
 - SMPL-X official download page: <https://smpl-x.is.tue.mpg.de/>
 
 SMPL and SMPL-X require registration and license agreement before download. Do
 not commit these files to this repo.
 
-Place the assets in the GVHMR checkpoint tree expected by upstream GVHMR:
+Place the downloaded assets in the checkpoint tree expected by your GVHMR
+runtime. A typical local layout is:
 
 ```text
-external/GVHMR/inputs/checkpoints/
+{GVHMR_ROOT}/inputs/checkpoints/
 ├── body_models/
 │   ├── smpl/
 │   │   └── SMPL_NEUTRAL.pkl        # or SMPL_{GENDER}.pkl from SMPL
@@ -82,12 +82,18 @@ external/GVHMR/inputs/checkpoints/
     └── dpvo.pth                    # optional when using DPVO instead of SimpleVO
 ```
 
+For this repo's CSV conversion step, `export_gvhmr_joints.py` needs access to
+the GVHMR Python package utilities and body-model helper files from an existing
+GVHMR environment. Point `--gvhmr-root` at that environment; it does not have to
+live inside this repository.
+
 After GVHMR produces `hmr4d_results.pt`, convert it to this repo's 3D CSV
 contract:
 
 ```bash
+GVHMR_ROOT=/path/to/GVHMR
 python scripts/export_gvhmr_joints.py \
-  --gvhmr-root external/GVHMR \
+  --gvhmr-root "$GVHMR_ROOT" \
   --result outputs/gvhmr_runs/clip_a/hmr4d_results.pt \
   --output data/external_pose3d/gvhmr/clip_a.csv \
   --clip-id clip_a
