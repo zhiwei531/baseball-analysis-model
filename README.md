@@ -39,6 +39,60 @@ python -m venv .venv
 python -m pip install -e '.[dev]'
 ```
 
+## GVHMR/SMPL Assets
+
+The 3D stage expects GVHMR to run as an external research dependency. Clone the
+official GVHMR code outside versioned source or under the ignored `external/`
+folder:
+
+```bash
+mkdir -p external
+git clone https://github.com/zju3dv/GVHMR.git external/GVHMR
+```
+
+Download weights and body models from the official upstream sources:
+
+- GVHMR official code and install notes: <https://github.com/zju3dv/GVHMR>
+- GVHMR pretrained checkpoints Google Drive folder from the official install
+  doc: <https://drive.google.com/drive/folders/1eebJ13FUEXrKBawHpJroW0sNSxLjh9xD?usp=drive_link>
+- SMPL official download page: <https://smpl.is.tue.mpg.de/>
+- SMPL-X official download page: <https://smpl-x.is.tue.mpg.de/>
+
+SMPL and SMPL-X require registration and license agreement before download. Do
+not commit these files to this repo.
+
+Place the assets in the GVHMR checkpoint tree expected by upstream GVHMR:
+
+```text
+external/GVHMR/inputs/checkpoints/
+├── body_models/
+│   ├── smpl/
+│   │   └── SMPL_NEUTRAL.pkl        # or SMPL_{GENDER}.pkl from SMPL
+│   └── smplx/
+│       └── SMPLX_NEUTRAL.npz       # or SMPLX_{GENDER}.npz from SMPL-X
+├── gvhmr/
+│   └── gvhmr_siga24_release.ckpt
+├── hmr2/
+│   └── epoch=10-step=25000.ckpt
+├── vitpose/
+│   └── vitpose-h-multi-coco.pth
+├── yolo/
+│   └── yolov8x.pt
+└── dpvo/
+    └── dpvo.pth                    # optional when using DPVO instead of SimpleVO
+```
+
+After GVHMR produces `hmr4d_results.pt`, convert it to this repo's 3D CSV
+contract:
+
+```bash
+python scripts/export_gvhmr_joints.py \
+  --gvhmr-root external/GVHMR \
+  --result outputs/gvhmr_runs/clip_a/hmr4d_results.pt \
+  --output data/external_pose3d/gvhmr/clip_a.csv \
+  --clip-id clip_a
+```
+
 ## Output Layout
 
 For clip `clip_a` and condition `srs_2d_pose`, the integrated entry writes:
